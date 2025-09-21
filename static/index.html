@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Giga Finanalytix - Financial Report Generator</title>
+
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- html2pdf.js for PDF exporting -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"
+        xintegrity="sha512-GsLlZN/3F2ErC5ifS5QtgpiJtWd43JWSuIgh7mbzZ8zBps+dvLusV+eNQATqgA/HdeKFVgA5v3S/cIrLF7QnIg=="
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+    <!-- Showdown.js for Markdown to HTML conversion -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/showdown/2.1.0/showdown.min.js"
+        xintegrity="sha512-LhccdVNGe2QMEfI3x4DVV3ckMRe36TfxKrgYQEpTRlPSLeFvpVuaXPOd0CLZQYDUO9GuSvpI1EMcadSNAYNeOA=="
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+    <!-- Custom Google Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        /* Custom styles to complement Tailwind */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f2f5;
+        }
+
+        /* Styling for the generated report content */
+        .report-content h2 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #1a202c;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 0.5rem;
+            margin-top: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .report-content h3 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #2d3748;
+            margin-top: 1rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .report-content ul {
+            list-style-type: disc;
+            padding-left: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .report-content blockquote {
+            border-left: 4px solid #cbd5e0;
+            padding-left: 1rem;
+            margin-left: 0;
+            font-style: italic;
+            color: #4a5568;
+        }
+
+        .loader {
+            border-top-color: #3498db;
+            -webkit-animation: spin 1s linear infinite;
+            animation: spin 1s linear infinite;
+        }
+
+        @-webkit-keyframes spin {
+            0% {
+                -webkit-transform: rotate(0deg);
+            }
+
+            100% {
+                -webkit-transform: rotate(360deg);
+            }
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+</head>
+
+<body class="antialiased text-gray-800">
+
+    <div class="min-h-screen flex flex-col">
+        <!-- Header Section -->
+        <header class="bg-white shadow-sm sticky top-0 z-10">
+            <div class="container mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex items-center justify-between h-20">
+                    <div class="flex items-center space-x-4">
+                        <img src="https://storage.googleapis.com/gemini-prod-us-west1-d853b1a2624a/uploaded/logo.jpg"
+                            alt="Giga Finanalytix Logo" class="h-12 w-auto">
+                        <h1 class="text-2xl font-bold text-gray-900 tracking-tight">Giga Finanalytix</h1>
+                    </div>
+                    <button id="export-pdf-btn"
+                        class="hidden items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                            xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                        </svg>
+                        Export as PDF
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="flex-grow container mx-auto p-4 sm:p-6 lg:p-8">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+                <!-- Left Column: Controls and Upload -->
+                <div class="lg:col-span-1">
+                    <div class="bg-white p-6 rounded-lg shadow-lg sticky top-28">
+                        <h2 class="text-xl font-bold mb-4 border-b pb-2">Generate Your Analysis</h2>
+
+                        <form id="report-form">
+                            <!-- Ticker Input -->
+                            <div class="mb-6">
+                                <label for="ticker" class="block text-sm font-medium text-gray-700 mb-1">Stock Ticker
+                                    Symbol</label>
+                                <input type="text" name="ticker" id="ticker"
+                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                                    placeholder="e.g., RELIANCE" required>
+                                <p class="mt-2 text-xs text-gray-500">Enter the NSE ticker for financial data.</p>
+                            </div>
+
+                            <!-- PDF Upload -->
+                            <div class="mb-6">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Upload Concall
+                                    Transcripts</label>
+                                <div id="drop-zone"
+                                    class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md cursor-pointer hover:border-indigo-500 transition">
+                                    <div class="space-y-1 text-center">
+                                        <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none"
+                                            viewBox="0 0 48 48" aria-hidden="true">
+                                            <path
+                                                d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8"
+                                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                        </svg>
+                                        <div class="flex text-sm text-gray-600">
+                                            <p class="pl-1">Upload files or drag and drop</p>
+                                            <input id="files" name="files" type="file" class="sr-only" multiple
+                                                accept=".pdf" required>
+                                        </div>
+                                        <p class="text-xs text-gray-500">PDF up to 10MB each</p>
+                                    </div>
+                                </div>
+                                <div id="file-list" class="mt-3 text-sm text-gray-700"></div>
+                            </div>
+
+                            <!-- Generate Button -->
+                            <button type="submit" id="generate-btn"
+                                class="w-full flex justify-center items-center py-3 px-4 border border-transparent rounded-md shadow-sm text-base font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-indigo-300">
+                                <span id="btn-text">Generate Report</span>
+                                <div id="btn-loader"
+                                    class="hidden loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-5 w-5">
+                                </div>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Right Column: Report Display -->
+                <div class="lg:col-span-2">
+                    <div id="report-container" class="bg-white p-8 rounded-lg shadow-lg min-h-full">
+                        <div id="report-placeholder"
+                            class="text-center text-gray-500 flex flex-col items-center justify-center h-full">
+                            <svg class="w-16 h-16 text-gray-300 mb-4" fill="none" stroke="currentColor"
+                                viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                                    d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V7a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
+                                </path>
+                            </svg>
+                            <h3 class="text-lg font-semibold">Your financial report will appear here.</h3>
+                            <p class="mt-1 text-sm">Please provide a ticker and upload 2-3 earnings transcripts to
+                                begin.</p>
+                        </div>
+                        <div id="report-content" class="report-content"></div>
+                        <div id="report-loader" class="hidden text-center py-20">
+                            <div
+                                class="loader ease-linear rounded-full border-8 border-t-8 border-gray-200 h-32 w-32 mx-auto">
+                            </div>
+                            <p class="mt-4 text-lg font-semibold text-gray-600">Generating Analysis...</p>
+                            <p class="text-sm text-gray-500">This may take a moment. Please wait.</p>
+                        </div>
+                        <div id="error-message" class="hidden text-center text-red-600 bg-red-50 p-4 rounded-md"></div>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const form = document.getElementById('report-form');
+            const tickerInput = document.getElementById('ticker');
+            const fileInput = document.getElementById('files');
+            const dropZone = document.getElementById('drop-zone');
+            const fileList = document.getElementById('file-list');
+            const generateBtn = document.getElementById('generate-btn');
+            const btnText = document.getElementById('btn-text');
+            const btnLoader = document.getElementById('btn-loader');
+
+            const reportContainer = document.getElementById('report-container');
+            const reportPlaceholder = document.getElementById('report-placeholder');
+            const reportContent = document.getElementById('report-content');
+            const reportLoader = document.getElementById('report-loader');
+            const errorMessage = document.getElementById('error-message');
+            const exportPdfBtn = document.getElementById('export-pdf-btn');
+
+            const markdownConverter = new showdown.Converter();
+
+            // --- File Upload Logic ---
+
+            // Handle clicks on the drop zone to trigger file input
+            dropZone.addEventListener('click', () => fileInput.click());
+
+            // Handle file selection
+            fileInput.addEventListener('change', () => {
+                handleFiles(fileInput.files);
+            });
+
+            // Handle drag and drop
+            dropZone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dropZone.classList.add('border-indigo-500', 'bg-indigo-50');
+            });
+            dropZone.addEventListener('dragleave', (e) => {
+                e.preventDefault();
+                dropZone.classList.remove('border-indigo-500', 'bg-indigo-50');
+            });
+            dropZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dropZone.classList.remove('border-indigo-500', 'bg-indigo-50');
+                fileInput.files = e.dataTransfer.files;
+                handleFiles(fileInput.files);
+            });
+
+            function handleFiles(files) {
+                fileList.innerHTML = '';
+                if (files.length === 0) {
+                    fileList.innerHTML = '<p class="text-red-500">No files selected.</p>';
+                    return;
+                }
+                const list = document.createElement('ul');
+                list.className = 'space-y-1';
+                for (const file of files) {
+                    const listItem = document.createElement('li');
+                    listItem.textContent = `📄 ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`;
+                    list.appendChild(listItem);
+                }
+                fileList.appendChild(list);
+            }
+
+            // --- Form Submission Logic ---
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+
+                // Reset UI state
+                setLoadingState(true);
+                reportPlaceholder.classList.add('hidden');
+                reportContent.innerHTML = '';
+                reportLoader.classList.remove('hidden');
+                errorMessage.classList.add('hidden');
+                errorMessage.textContent = '';
+                exportPdfBtn.classList.add('hidden');
+
+                const formData = new FormData();
+                formData.append('ticker', tickerInput.value);
+
+                if (fileInput.files.length === 0) {
+                    displayError("Please select at least one PDF file.");
+                    setLoadingState(false);
+                    return;
+                }
+
+                for (const file of fileInput.files) {
+                    formData.append('files', file);
+                }
+
+                try {
+                    // NOTE: The request is sent to the same origin, expecting the Flask backend to be running.
+                    const response = await fetch('/generate_report', {
+                        method: 'POST',
+                        body: formData,
+                    });
+
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.error || `Server responded with status: ${response.status}`);
+                    }
+
+                    const data = await response.json();
+                    renderReport(data);
+                    exportPdfBtn.classList.remove('hidden');
+
+                } catch (error) {
+                    console.error('Error generating report:', error);
+                    displayError(error.message || 'An unknown error occurred.');
+                } finally {
+                    setLoadingState(false);
+                }
+            });
+
+            function setLoadingState(isLoading) {
+                generateBtn.disabled = isLoading;
+                if (isLoading) {
+                    btnText.classList.add('hidden');
+                    btnLoader.classList.remove('hidden');
+                } else {
+                    btnText.classList.remove('hidden');
+                    btnLoader.classList.add('hidden');
+                    reportLoader.classList.add('hidden');
+                }
+            }
+
+            function displayError(message) {
+                reportLoader.classList.add('hidden');
+                reportPlaceholder.classList.add('hidden');
+                errorMessage.textContent = `Error: ${message}`;
+                errorMessage.classList.remove('hidden');
+            }
+
+            function renderReport(data) {
+                reportLoader.classList.add('hidden');
+                reportContent.innerHTML = `
+                    <h1 class="text-3xl font-bold mb-6 text-gray-900 border-b-2 pb-3">Financial Analysis Report: ${tickerInput.value.toUpperCase()}</h1>
+                    
+                    <div id="businessModel">
+                        <h2>1. Business Model Summary</h2>
+                        ${markdownConverter.makeHtml(data.businessModel || 'Not available.')}
+                    </div>
+                    
+                    <div id="keyQuarterlyUpdates">
+                        <h2>2. Key Quarterly Updates</h2>
+                        ${markdownConverter.makeHtml(data.keyQuarterlyUpdates || 'Not available.')}
+                    </div>
+
+                    <div id="managementCommentary">
+                        <h2>3. Management Commentary Insights</h2>
+                        ${markdownConverter.makeHtml(data.managementCommentary || 'Not available.')}
+                    </div>
+
+                    <div id="financialProjections">
+                        <h2>4. AI-Powered Financial Projections</h2>
+                        ${data.financialProjections || '<p>Projections not available.</p>'}
+                    </div>
+                    
+                    <div id="risksUncertainties">
+                        <h2>5. Risks & Uncertainties</h2>
+                        ${markdownConverter.makeHtml(data.risksUncertainties || 'Not available.')}
+                    </div>
+
+                    <div id="promptSet">
+                        <h2>6. AI Prompt Set for Deeper Analysis</h2>
+                        ${markdownConverter.makeHtml(data.promptSet || 'Not available.')}
+                    </div>
+
+                    <div class="mt-8 text-xs text-gray-500 text-center border-t pt-4">
+                        <p><strong>Disclaimer:</strong> This report was generated using AI models based on publicly available data. It is intended for informational purposes only and is not investment advice. Please verify any forward-looking statements with official company filings.</p>
+                    </div>
+                `;
+            }
+
+            // --- PDF Export Logic ---
+            exportPdfBtn.addEventListener('click', () => {
+                const element = document.getElementById('report-content');
+                const ticker = tickerInput.value || 'report';
+                const opt = {
+                    margin: 0.5,
+                    filename: `${ticker}_Financial_Analysis.pdf`,
+                    image: { type: 'jpeg', quality: 0.98 },
+                    html2canvas: { scale: 2, useCORS: true },
+                    jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+                };
+
+                html2pdf().set(opt).from(element).save();
+            });
+
+        });
+    </script>
+</body>
+
+</html>
+

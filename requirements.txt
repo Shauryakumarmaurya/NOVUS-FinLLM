@@ -1,0 +1,8 @@
+Flask
+python-dotenv
+gunicorn
+google-generativeai
+requests
+PyMuPDF
+beautifulsoup4
+lxml
