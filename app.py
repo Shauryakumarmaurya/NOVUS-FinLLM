@@ -13,7 +13,7 @@ load_dotenv()
 
 # --- Configuration ---
 app = Flask(__name__, static_folder='static')
-gemini_api_key = "AIzaSyDufBM6FYgfHgxwLwGeXGwrJ3MWPItbL8g"#os.getenv("GEMINI_API_KEY") # Gemini API key from environment variable
+gemini_api_key = os.getenv("GEMINI_API_KEY") # Gemini API key from environment variable
 fmp_api_key = os.getenv("FMP_API_KEY") # Financial Modeling Prep API key (if needed)
 
 # Configure the Gemini API client
@@ -390,4 +390,5 @@ def serve_frontend():
 
 # --- Run the App ---
 if __name__ == '__main__':
+
     app.run(port=5000, debug=True ,host='0.0.0.0')
