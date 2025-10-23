@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+.venv/
+venv/
+
+# Environment and secrets
+.env
+*.env
+
+# Logs and debug artifacts
+gemini_input_debug.txt
+*.log
+
+# IDE/editor
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Local testing scripts
+get_financial_data_output_testing.py
+*_output_testing.py

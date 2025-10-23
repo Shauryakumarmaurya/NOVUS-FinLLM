@@ -1,8 +1,15 @@
 Flask
 python-dotenv
-gunicorn
 google-generativeai
 requests
 PyMuPDF
 beautifulsoup4
 lxml
+redis
+rq
+pandas
+numpy
+markdown
+# gunicorn is for Linux deployments; on Windows use waitress or run via python
+gunicorn
+yfinance

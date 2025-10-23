@@ -100,7 +100,7 @@
             <div class="container mx-auto px-4 sm:px-6 lg:px-8">
                 <div class="flex items-center justify-between h-20">
                     <div class="flex items-center space-x-4">
-                        <img src="https://storage.googleapis.com/gemini-prod-us-west1-d853b1a2624a/uploaded/logo.png"
+                        <img src="/static/logo.png"
                             alt="Giga Finanalytix Logo" class="h-12 w-auto">
                         <h1 class="text-2xl font-bold text-gray-900 tracking-tight">Giga Finanalytix</h1>
                     </div>
@@ -270,7 +270,7 @@
             form.addEventListener('submit', async (e) => {
                 e.preventDefault();
 
-                // Reset UI state
+                // Reset UI state for async processing
                 setLoadingState(true);
                 reportPlaceholder.classList.add('hidden');
                 reportContent.innerHTML = '';
@@ -280,7 +280,7 @@
                 exportPdfBtn.classList.add('hidden');
 
                 const formData = new FormData();
-                formData.append('ticker', tickerInput.value);
+                formData.append('ticker', tickerInput.value.trim());
 
                 if (fileInput.files.length === 0) {
                     displayError("Please select at least one PDF file.");
@@ -293,28 +293,88 @@
                 }
 
                 try {
-                    // NOTE: The request is sent to the same origin, expecting the Flask backend to be running.
-                    const response = await fetch('/generate_report', {
-                        method: 'POST',
-                        body: formData,
-                    });
-
+                    const response = await fetch('/generate_report', { method: 'POST', body: formData });
                     if (!response.ok) {
-                        const errorData = await response.json();
-                        throw new Error(errorData.error || `Server responded with status: ${response.status}`);
+                        let msg = `Server responded with status: ${response.status}`;
+                        try { const errJson = await response.json(); msg = errJson.error || msg; } catch {}
+                        throw new Error(msg);
                     }
-
-                    const data = await response.json();
-                    renderReport(data);
-                    exportPdfBtn.classList.remove('hidden');
-
+                    const { job_id } = await response.json();
+                    pollJob(job_id);
                 } catch (error) {
-                    console.error('Error generating report:', error);
-                    displayError(error.message || 'An unknown error occurred.');
-                } finally {
+                    console.error('Enqueue error:', error);
+                    displayError(error.message || 'Failed to start report generation.');
                     setLoadingState(false);
                 }
             });
+
+            const stageLabels = {
+                extract_pdfs: 'Extracting PDF text',
+                fetch_financials: 'Fetching financial statements',
+                business_model: 'Analyzing business model',
+                quarterly_updates: 'Summarizing quarterly updates',
+                management_commentary: 'Summarizing management commentary',
+                risks: 'Identifying risks',
+                prompt_set: 'Generating prompt set',
+                assumptions: 'Deriving assumptions',
+                projections: 'Building projections',
+                assemble: 'Assembling final report'
+            };
+
+            async function pollJob(jobId) {
+                let attempts = 0;
+                const maxAttempts = 600; // ~30 mins @ 3s interval
+                const intervalMs = 3000;
+
+                async function check() {
+                    attempts++;
+                    try {
+                        const res = await fetch(`/job_status/${jobId}`);
+                        if (!res.ok) throw new Error(`Status ${res.status}`);
+                        const data = await res.json();
+
+                        if (data.status === 'completed') {
+                            // Backend returns {status, result: {...}}
+                            renderReport(data.result || {});
+                            exportPdfBtn.classList.remove('hidden');
+                            setLoadingState(false);
+                            return;
+                        }
+                        if (data.status === 'failed') {
+                            displayError('Job failed. See logs.');
+                            setLoadingState(false);
+                            return;
+                        }
+                        if (data.status === 'error') {
+                            displayError(data.error || 'Error retrieving job status');
+                            setLoadingState(false);
+                            return;
+                        }
+
+                        // Still running / queued
+                        updateProgress(data.progress || {});
+                        if (attempts < maxAttempts) setTimeout(check, intervalMs);
+                        else {
+                            displayError('Stopped polling (timeout).');
+                            setLoadingState(false);
+                        }
+                    } catch (err) {
+                        console.warn('Polling error:', err);
+                        if (attempts < maxAttempts) setTimeout(check, intervalMs * 2);
+                        else {
+                            displayError('Polling aborted due to repeated errors.');
+                            setLoadingState(false);
+                        }
+                    }
+                }
+                check();
+            }
+
+            function updateProgress(meta) {
+                const stage = meta.stage || 'queued';
+                const label = stageLabels[stage] || (stage === 'queued' ? 'Queued' : stage);
+                reportLoader.querySelector('p.mt-4').textContent = label + '...';
+            }
 
             function setLoadingState(isLoading) {
                 generateBtn.disabled = isLoading;
