@@ -7,7 +7,7 @@ _queue = None
 
 def _build_redis():
     """Create a Redis connection (supports REDIS_URL)."""
-    url =  os.getenv("REDIS_URL")
+    url =  "rediss://default:ASdJAAIncDJkZWI3ZWVmZjRiMWI0MWM5OWU4ZDE0YWQ0OTgyYmI1NXAyMTAwNTc@eternal-goshawk-10057.upstash.io:6379"#os.getenv("REDIS_URL")
     if url:
         return Redis.from_url(url, decode_responses=False)
     return Redis(
