@@ -12,4 +12,6 @@ numpy
 markdown
 # gunicorn is for Linux deployments; on Windows use waitress or run via python
 gunicorn
+
 yfinance
+flask_cors
