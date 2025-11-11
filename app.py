@@ -4,13 +4,13 @@ from dotenv import load_dotenv
 from redis_config import get_queue, get_redis  # updated import path (same directory)
 from tasks import generate_financial_report
 from rq.job import Job
-
+from flask_cors import CORS
 # Load environment variables
 load_dotenv()
 
 # Initialize Flask app
 app = Flask(__name__, static_folder='static')
-
+CORS(app)
 @app.route('/generate_report', methods=['POST'])
 def generate_report():
     """Start background task for report generation"""
@@ -90,4 +90,5 @@ def health():
         return {"status": "error", "error": str(e)}, 500
 
 if __name__ == '__main__':
-    app.run(port=5000, debug=True, host='0.0.0.0')
+
+    app.run(port=8080, debug=True, host='0.0.0.0')
