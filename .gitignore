@@ -24,11 +24,9 @@ gemini_input_debug.txt
 .DS_Store
 Thumbs.db
 
-# Local data
+# Large data directories
 chroma_db/
 company_docs/
-test.pdf
-worker.log
 
 # Local testing scripts
 get_financial_data_output_testing.py
