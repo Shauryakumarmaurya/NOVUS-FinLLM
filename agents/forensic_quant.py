@@ -8,9 +8,10 @@ class ForensicQuantV3:
     def execute(self, ticker: str, financial_tables: dict, **kwargs) -> AuditTrail:
         start = time.time()
         
-        pl = financial_tables.get("profit_loss", {})
-        bs = financial_tables.get("balance_sheet", {})
-        cf = financial_tables.get("cash_flow", {})
+        # Support both legacy internal keys and direct Screener.in keys
+        pl = financial_tables.get("Profit & Loss", financial_tables.get("profit_loss", {}))
+        bs = financial_tables.get("Balance Sheet", financial_tables.get("balance_sheet", {}))
+        cf = financial_tables.get("Cash Flows", financial_tables.get("cash_flow", {}))
         
         findings = {}
         data_gaps = []
