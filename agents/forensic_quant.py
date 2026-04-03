@@ -8,10 +8,40 @@ class ForensicQuantV3:
     def execute(self, ticker: str, financial_tables: dict, **kwargs) -> AuditTrail:
         start = time.time()
         
-        # Support both legacy internal keys and direct Screener.in keys
-        pl = financial_tables.get("Profit & Loss", financial_tables.get("profit_loss", {}))
-        bs = financial_tables.get("Balance Sheet", financial_tables.get("balance_sheet", {}))
-        cf = financial_tables.get("Cash Flows", financial_tables.get("cash_flow", {}))
+        # Transform flat list of dicts from screener into hierarchical dict keyed by year
+        def _transpose(tbl):
+            if not isinstance(tbl, list): return tbl
+            if not tbl: return {}
+            out = {}
+            for row in tbl:
+                if not isinstance(row, dict): continue
+                # Identify the label (usually the first unspoken column like 'Line Item')
+                label = ""
+                for k, v in row.items():
+                    if k in ("Line Item", "Unnamed: 0") or str(k).startswith("Unnamed"):
+                        label = str(v).strip()
+                        break
+                if not label and row: label = str(next(iter(row.values()), "")).strip()
+                
+                # Allocate values to their respective years
+                for k, v in row.items():
+                    if k in ("Line Item", "Unnamed: 0") or str(k).startswith("Unnamed"): 
+                        continue
+                    yr = str(k).strip()
+                    if yr not in out: out[yr] = {}
+                    
+                    # Ensure numeric parsing
+                    val = str(v).replace(",", "").replace("%", "").strip()
+                    try:
+                        out[yr][label] = float(val)
+                    except ValueError:
+                        out[yr][label] = None
+            return out
+
+        # Support both legacy internal keys and direct Screener.in keys, wrapped in structure transpose
+        pl = _transpose(financial_tables.get("Profit & Loss", financial_tables.get("profit_loss", {})))
+        bs = _transpose(financial_tables.get("Balance Sheet", financial_tables.get("balance_sheet", {})))
+        cf = _transpose(financial_tables.get("Cash Flows", financial_tables.get("cash_flow", {})))
         
         findings = {}
         data_gaps = []
