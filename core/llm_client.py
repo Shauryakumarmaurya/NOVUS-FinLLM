@@ -1,10 +1,14 @@
 """
 novus_v3/core/llm_client.py — Unified LLM Client with Tool Calling
 
-Replaces your current call_deepseek() which only supports:
-    response_text = call_deepseek(system_prompt, user_content)
+Model routing (top-notch equity analysis mode):
+    DEEPSEEK_R1  = deepseek-reasoner   → ALL analytical agents (default)
+    DEEPSEEK_V3  = deepseek-chat       → extraction.py only (fast + cheap)
 
-This supports:
+Note: R1 does NOT accept a temperature parameter — it uses its own internal
+chain-of-thought. This client automatically omits temperature when using R1.
+
+Supports:
     1. Simple calls (backward compatible)
     2. Tool/function calling (DeepSeek + OpenAI compatible)
     3. Multi-turn conversations
@@ -16,7 +20,7 @@ import json
 import time
 import re
 import os
-from typing import Optional
+from typing import Optional, Any
 from dataclasses import dataclass, field
 from dotenv import load_dotenv
 
@@ -52,13 +56,17 @@ class LLMClient:
     Drop-in replacement for your current call_deepseek().
     """
 
+    # Model name constants
+    DEEPSEEK_R1 = "deepseek-reasoner"   # Deep reasoning — use for ALL analysis agents
+    DEEPSEEK_V3 = "deepseek-chat"       # Fast/cheap    — use for extraction only
+
     def __init__(
         self,
         api_key: str = None,
         base_url: str = None,
-        model: str = "deepseek-chat",
+        model: str = "deepseek-reasoner",  # R1 is the default now — top-notch analysis
         max_retries: int = 3,
-        timeout: int = 120,
+        timeout: int = 180,                # R1 needs more time for chain-of-thought
     ):
         self.api_key = api_key or os.getenv("DEEPSEEK_API_KEY", "")
         self.base_url = base_url or os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
@@ -66,6 +74,11 @@ class LLMClient:
         self.max_retries = max_retries
         self.timeout = timeout
         self._client = None
+
+    @property
+    def is_r1(self) -> bool:
+        """True if this client is using the R1 reasoning model."""
+        return "reasoner" in self.model
 
     def _get_client(self):
         if self._client is None:
@@ -99,7 +112,7 @@ class LLMClient:
         messages: list[dict],
         tools: list[dict] = None,
         temperature: float = 0.1,
-        max_tokens: int = 4096,
+        max_tokens: Optional[int] = None,   # defaults to 16k for R1, 4k for V3
     ) -> LLMResponse:
         """
         Full LLM call with tool/function calling support.
@@ -107,20 +120,23 @@ class LLMClient:
         Args:
             messages: Conversation history [{role, content}, ...]
             tools: Tool definitions for function calling
-            temperature: 0.0-1.0 (use 0.1 for analytical tasks)
-            max_tokens: Max output tokens
+            temperature: 0.0-1.0 — IGNORED for R1 (automatically omitted)
+            max_tokens: Max output tokens. Defaults to 16000 for R1, 4096 for V3.
             
         Returns:
             LLMResponse with content, tool_calls, thinking trace, etc.
         """
         client = self._get_client()
 
-        kwargs = {
+        # R1 does not accept temperature — omit it entirely
+        effective_max_tokens = max_tokens or (16000 if self.is_r1 else 4096)
+        kwargs: dict[str, Any] = {
             "model": self.model,
             "messages": messages,
-            "temperature": temperature,
-            "max_tokens": max_tokens,
+            "max_tokens": effective_max_tokens,
         }
+        if not self.is_r1:
+            kwargs["temperature"] = temperature  # only set for V3
         if tools:
             kwargs["tools"] = tools
             kwargs["tool_choice"] = "auto"
@@ -181,12 +197,34 @@ class LLMClient:
         )
 
 
-# ── Module-level singleton ────────────────────────────────────────────────
+# ── Module-level singletons ─────────────────────────────────────────────
 
-_default_client: Optional[LLMClient] = None
+_r1_client:  Optional[LLMClient] = None   # R1 — all analytical agents
+_v3_client:  Optional[LLMClient] = None   # V3 — extraction only
 
-def get_llm_client() -> LLMClient:
-    global _default_client
-    if _default_client is None:
-        _default_client = LLMClient()
-    return _default_client
+def get_llm_client(use_r1: bool = True) -> LLMClient:
+    """
+    Returns the appropriate LLM client.
+    
+    use_r1=True  (default) → DeepSeek-R1 (deepseek-reasoner) for top-notch equity analysis
+    use_r1=False           → DeepSeek-V3 (deepseek-chat) for fast extraction
+    """
+    global _r1_client, _v3_client
+    if use_r1:
+        if _r1_client is None:
+            _r1_client = LLMClient(model=LLMClient.DEEPSEEK_R1)
+        return _r1_client
+    else:
+        if _v3_client is None:
+            _v3_client = LLMClient(model=LLMClient.DEEPSEEK_V3)
+        return _v3_client
+
+
+def get_r1_client() -> LLMClient:
+    """Shortcut: DeepSeek-R1 for deep analytical reasoning."""
+    return get_llm_client(use_r1=True)
+
+
+def get_v3_client() -> LLMClient:
+    """Shortcut: DeepSeek-V3 for fast extraction and formatting."""
+    return get_llm_client(use_r1=False)
