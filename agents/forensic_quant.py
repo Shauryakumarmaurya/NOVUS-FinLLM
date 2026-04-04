@@ -14,6 +14,7 @@ class ForensicQuantV3:
         pl = financial_tables.get("profit_loss", {})
         bs = financial_tables.get("balance_sheet", {})
         cf = financial_tables.get("cash_flow", {})
+        qr = financial_tables.get("quarterly_results", {})
         
         findings = {}
         data_gaps = []
@@ -162,7 +163,29 @@ class ForensicQuantV3:
 
         # ── Anomaly Bridge (RAG Integration) ──
         try:
-            if len(years) >= 2:
+            # 1. Check Quarterly Anomalies (Most critical for recent spikes like the 4048Cr Other Income)
+            q_quarters = sorted(qr.keys())
+            if len(q_quarters) >= 2:
+                latest_q = q_quarters[-1]
+                prev_q = q_quarters[-2]
+                curr_pat_q = _fget(qr[latest_q], "Net Profit", "PAT", default=0)
+                prev_pat_q = _fget(qr[prev_q], "Net Profit", "PAT", default=0)
+                curr_other_q = _fget(qr[latest_q], "Other Income", default=0)
+                
+                if curr_pat_q and prev_pat_q and prev_pat_q > 0:
+                    pat_growth_q = (curr_pat_q - prev_pat_q) / prev_pat_q
+                    
+                    # Also check if Other Income is massively distorting PBT
+                    pbt_q = _fget(qr[latest_q], "Profit before tax", "PBT", default=curr_pat_q)
+                    other_inc_ratio = (curr_other_q / pbt_q) if pbt_q > 0 else 0
+
+                    if pat_growth_q > 0.30 or other_inc_ratio > 0.15:
+                        res = rag_query(ticker, f"Why did net profit or other income jump heavily in the {latest_q} quarter? exceptional items", top_k=2)
+                        ex = " | ".join(r['text'][:400] for r in res) if res else "No context found."
+                        findings["anomaly_flag"] = f"Quarterly Spike: {latest_q} PAT changed {pat_growth_q:.1%} QoQ. RAG: {ex}"
+            
+            # 2. Check Annual Anomalies if Quarterly didn't trigger
+            if "anomaly_flag" not in findings and len(years) >= 2:
                 prev_pl = pl.get(years[-2], {})
                 prev_pat = _fget(prev_pl, "Net Profit", "PAT", "Profit after tax", default=0)
                 curr_pat = _fget(latest_pl, "Net Profit", "PAT", "Profit after tax", default=0)
@@ -170,13 +193,9 @@ class ForensicQuantV3:
                 if curr_pat and prev_pat and prev_pat > 0:
                     pat_growth = (curr_pat - prev_pat) / prev_pat
                     if pat_growth > 0.20:
-                        # RAG query to bridge the gap
-                        res = rag_query(ticker, f"Why did net profit or other income jump heavily in {latest}?", top_k=2)
-                        if res:
-                            explanation = " | ".join(r['text'][:400] for r in res)
-                            findings["anomaly_flag"] = f"PAT surged {pat_growth:.1%} YoY. RAG Explanation: {explanation}"
-                        else:
-                            findings["anomaly_flag"] = f"PAT surged {pat_growth:.1%} YoY. No context found in documents."
+                        res = rag_query(ticker, f"Why did net profit or other income jump heavily in {latest}? exceptional items", top_k=2)
+                        ex = " | ".join(r['text'][:400] for r in res) if res else "No context found."
+                        findings["anomaly_flag"] = f"Annual Spike: {latest} PAT surged {pat_growth:.1%} YoY. RAG: {ex}"
         except Exception as e:
             flags.append(f"Bridge analysis failed: {e}")
 

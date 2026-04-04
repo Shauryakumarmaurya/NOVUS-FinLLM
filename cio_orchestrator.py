@@ -173,10 +173,34 @@ async def run_pipeline(
     print(f"> [CIO] Lead Analyst generated frameworks for {len(state.agent_frameworks)} agents.")
 
     phase1 = EXECUTION_PHASES[0]
-    if progress_callback:
-        progress_callback("investigation", phase1["agents"], [])
+    phase1_agents = phase1["agents"].copy()
 
-    await _run_agents_parallel(state, phase1["agents"], v3_llm, progress_callback)
+    # ── STAGED BLACKBOARD: Run Quant First ──
+    if "forensic_quant" in phase1_agents:
+        if progress_callback:
+            progress_callback("investigation", ["forensic_quant"], [])
+        await _run_agents_parallel(state, ["forensic_quant"], v3_llm, progress_callback)
+        
+        # Cross-pollinate the anomalies into the Prompt Composer's dynamic mandate
+        quant_trail = state.agent_trails.get("forensic_quant")
+        if quant_trail and quant_trail.findings:
+            anomaly = quant_trail.findings.get("anomaly_flag")
+            if anomaly:
+                alert = (
+                    f"\n\n## CRITICAL QUANT ALERT\n"
+                    f"The Quantitative engine flagged an anomaly: {anomaly}\n"
+                    f"Prioritize investigating this phenomenon."
+                )
+                for name in phase1_agents:
+                    if name != "forensic_quant":
+                        state.agent_frameworks[name] = state.agent_frameworks.get(name, "") + alert
+                        
+        phase1_agents.remove("forensic_quant")
+
+    if phase1_agents:
+        if progress_callback:
+            progress_callback("investigation", phase1_agents, list(state.agent_trails.keys()))
+        await _run_agents_parallel(state, phase1_agents, v3_llm, progress_callback)
 
     reflection_agents = _determine_reflection_needs(state)
     if reflection_agents:

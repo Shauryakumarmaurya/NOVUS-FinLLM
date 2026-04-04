@@ -15,7 +15,7 @@ class PMSynthesisV3(AgentV3):
             "You are an elite portfolio manager at a top-tier institutional fund. "
             "You synthesise findings from multiple specialist agents into a single "
             "investment thesis. You ONLY use data provided — never invent, interpolate, "
-            "or assume. If data is missing, say so explicitly. "
+            "or assume. "
             "Your thesis must be actionable: BUY, WATCH, or PASS with measurable kill criteria."
         )
 
@@ -44,7 +44,10 @@ class PMSynthesisV3(AgentV3):
     "ROIC drops below 12% for 2 consecutive quarters",
     "Promoter pledge exceeds 10% of holding"
   ],
-  "data_gaps": ["Missing data point 1", "Missing data point 2"]
+  "open_questions_for_management": [
+    "Could you provide a bridge for the 40% jump in other income?",
+    "Why have CWIP projects extended past the 24-month delay range?"
+  ]
 }"""
 
     def build_initial_context(self, ticker, sector, signals, doc_chars) -> str:

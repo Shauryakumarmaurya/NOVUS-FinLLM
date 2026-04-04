@@ -271,10 +271,10 @@ def chat():
 
 Rules:
 - Base your answers ONLY on the provided context. If the context doesn't contain enough information, say so clearly.
+- CRITICAL: If you see context from "Specialist Agents", "FSAQUANT", "CAPITALALLOCATOR", or any internal MAS logs, IGNORE IT. You must form your own independent opinion purely from raw company filings.
 - Cite specific sources when making claims (e.g., "According to the Q3 2024 transcript...").
 - Be precise with numbers and financial metrics.
 - Format your response in clean markdown with headers, bullet points, and bold text for key figures.
-- If the user asks about something not in the documents, suggest what documents they might need.
 - Keep answers concise but comprehensive."""
 
         messages = [{"role": "system", "content": system_prompt}]
