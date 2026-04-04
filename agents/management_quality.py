@@ -53,7 +53,7 @@ class ManagementQualityV3(AgentV3):
   "data_gaps": ["SAST filings not in provided context — cannot verify insider trades"]
 }"""
 
-    def build_agent_tools(self, doc: str, tables: dict) -> list[Tool]:
+    def build_agent_tools(self, doc: str, tables: dict, ticker: str = "") -> list[Tool]:
         return [
             Tool(
                 name="search_governance",
@@ -69,6 +69,6 @@ class ManagementQualityV3(AgentV3):
                     },
                     "required": ["topic"],
                 },
-                handler=_safe_handler(lambda topic: _search_governance(doc, topic)),
+                handler=_safe_handler(lambda topic: _search_governance(doc, topic, ticker)),
             ),
         ]

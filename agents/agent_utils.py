@@ -1,4 +1,5 @@
 import re
+from rag_engine import query as rag_query
 
 
 def _safe_handler(fn):
@@ -79,7 +80,13 @@ def _fuzzy(data: dict, key: str):
             return v
     return None
 
-def _search_guidance(doc, topic):
+def _search_guidance(doc, topic, ticker=""):
+    if ticker:
+        results = rag_query(ticker, f"management guidance outlook expected target {topic}", top_k=5)
+        if results:
+            return [{"passage": r["text"][:800], "type": "guidance_rag", "score": r["relevance"]} for r in results]
+
+    # Fallback to regex
     patterns = [
         rf"(?i)(?:we expect|guidance|outlook|target|aim to|going forward).*?{re.escape(topic)}",
         rf"(?i){re.escape(topic)}.*?(?:we expect|guidance|outlook|target)",
@@ -89,7 +96,7 @@ def _search_guidance(doc, topic):
         for m in re.finditer(pat, doc):
             start = max(0, m.start() - 100)
             end = min(len(doc), m.end() + 300)
-            results.append({"passage": doc[start:end].strip(), "type": "guidance"})
+            results.append({"passage": doc[start:end].strip(), "type": "guidance_regex"})
     return results[:5] or [{"passage": f"No guidance found for '{topic}'", "type": "none"}]
 
 def _detect_hedging(doc, section):
@@ -116,7 +123,13 @@ def _detect_hedging(doc, section):
     found.sort(key=lambda x: -x["count"])
     return found[:10] or [{"phrase": "No hedging language detected", "count": 0}]
 
-def _search_competitive(doc, topic):
+def _search_competitive(doc, topic, ticker=""):
+    if ticker:
+        results = rag_query(ticker, f"competitive advantage moat market share competitors {topic}", top_k=3)
+        if results:
+            return [{"passage": r["text"][:800], "score": r["relevance"], "source": "rag"} for r in results]
+
+    # Fallback to BM25
     keywords = topic.lower().split()
     paras = re.split(r'\n\s*\n', doc)
     scored = []
@@ -128,10 +141,18 @@ def _search_competitive(doc, topic):
         if score > 0:
             scored.append((score, p.strip()[:800]))
     scored.sort(key=lambda x: -x[0])
-    return [{"passage": p, "score": s} for s, p in scored[:3]] or [{"passage": "Not found", "score": 0}]
+    return [{"passage": p, "score": s, "source": "regex"} for s, p in scored[:3]] or [{"passage": "Not found", "score": 0}]
 
-def _search_capital(doc, topic):
+def _search_capital(doc, topic, ticker=""):
+    if ticker:
+        results = rag_query(ticker, f"capital allocation capex dividend buyback acquisition {topic}", top_k=3)
+        if results:
+            return [{"passage": r["text"][:800], "score": r["relevance"], "source": "rag"} for r in results]
     return _search_competitive(doc, topic)  
 
-def _search_governance(doc, topic):
+def _search_governance(doc, topic, ticker=""):
+    if ticker:
+        results = rag_query(ticker, f"management board directors related party auditor {topic}", top_k=3)
+        if results:
+            return [{"passage": r["text"][:800], "score": r["relevance"], "source": "rag"} for r in results]
     return _search_competitive(doc, topic)

@@ -145,7 +145,7 @@ class AgentV3(ABC):
         """Concrete JSON example of the expected output (NOT a schema dump)."""
         ...
 
-    def build_agent_tools(self, doc: str, tables: dict) -> list[Tool]:
+    def build_agent_tools(self, doc: str, tables: dict, ticker: str = "") -> list[Tool]:
         """
         Override to add agent-specific tools beyond the shared set.
         Return a list of Tool objects. They'll be merged into the shared registry.
@@ -210,8 +210,8 @@ class AgentV3(ABC):
             system_prompt += f"\n\n## DYNAMIC MANDATE (from Lead Analyst)\n{dynamic_mandate}"
 
         # ── 2. Build tools ──
-        tools = build_shared_tools(document_text, financial_tables)
-        for extra_tool in self.build_agent_tools(document_text, financial_tables):
+        tools = build_shared_tools(document_text, financial_tables, ticker=ticker)
+        for extra_tool in self.build_agent_tools(document_text, financial_tables, ticker=ticker):
             tools.register(extra_tool)
 
         # ── 3. Initial context ──

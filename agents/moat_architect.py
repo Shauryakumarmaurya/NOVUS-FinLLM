@@ -47,7 +47,7 @@ class MoatArchitectV3(AgentV3):
   "data_gaps": ["Industry volume data not in context — cannot benchmark vs peers"]
 }"""
 
-    def build_agent_tools(self, doc: str, tables: dict) -> list[Tool]:
+    def build_agent_tools(self, doc: str, tables: dict, ticker: str = "") -> list[Tool]:
         return [
             Tool(
                 name="search_competitive_data",
@@ -63,6 +63,6 @@ class MoatArchitectV3(AgentV3):
                     },
                     "required": ["topic"],
                 },
-                handler=_safe_handler(lambda topic: _search_competitive(doc, topic)),
+                handler=_safe_handler(lambda topic: _search_competitive(doc, topic, ticker)),
             ),
         ]

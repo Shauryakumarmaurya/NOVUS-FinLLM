@@ -51,7 +51,7 @@ class CapitalAllocatorV3(AgentV3):
   "data_gaps": ["Detailed M&A valuation multiples not disclosed"]
 }"""
 
-    def build_agent_tools(self, doc: str, tables: dict) -> list[Tool]:
+    def build_agent_tools(self, doc: str, tables: dict, ticker: str = "") -> list[Tool]:
         return [
             Tool(
                 name="search_capital_decisions",
@@ -67,6 +67,6 @@ class CapitalAllocatorV3(AgentV3):
                     },
                     "required": ["topic"],
                 },
-                handler=_safe_handler(lambda topic: _search_capital(doc, topic)),
+                handler=_safe_handler(lambda topic: _search_capital(doc, topic, ticker)),
             ),
         ]

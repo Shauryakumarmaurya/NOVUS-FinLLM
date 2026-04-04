@@ -13,6 +13,7 @@ import re
 import numpy as np
 from typing import Callable, Optional
 from dataclasses import dataclass
+from rag_engine import query as rag_query
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -71,7 +72,7 @@ class ToolRegistry:
 # Shared Tools — available to EVERY agent
 # ═══════════════════════════════════════════════════════════════════════════
 
-def build_shared_tools(document_text: str, financial_tables: dict) -> ToolRegistry:
+def build_shared_tools(document_text: str, financial_tables: dict, ticker: str = "") -> ToolRegistry:
     """
     Core toolkit every v3 agent gets.  Individual agents extend this
     with their own specialized tools via build_agent_tools().
@@ -92,7 +93,7 @@ def build_shared_tools(document_text: str, financial_tables: dict) -> ToolRegist
             "query":       ("string",  True,  "What to search for"),
             "max_results": ("integer", False, "1-5, default 3"),
         }),
-        handler=lambda query, max_results=3: _search_doc(document_text, query, max_results),
+        handler=lambda query, max_results=3: _search_doc(document_text, query, max_results, ticker),
     ))
 
     # ── 2. Get a specific page / note ─────────────────────────────────
@@ -240,8 +241,14 @@ def _fuzzy_get(data: dict, key: str):
     return None
 
 
-def _search_doc(text: str, query: str, max_results: int = 3) -> list[dict]:
-    """BM25-style keyword search over document paragraphs."""
+def _search_doc(text: str, query: str, max_results: int = 3, ticker: str = "") -> list[dict]:
+    """BM25-style keyword search over document paragraphs, with an option to use semantic RAG."""
+    if ticker:
+        results = rag_query(ticker, query, top_k=max_results)
+        if results:
+            return [{"passage": r["text"][:1000], "score": r["relevance"], "position": "rag_chunk"} for r in results]
+    
+    # Fallback to dumb BM25 search
     terms = [t.lower() for t in query.split() if len(t) > 2]
     if not terms:
         return [{"passage": "Empty query", "score": 0}]

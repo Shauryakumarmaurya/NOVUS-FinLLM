@@ -54,7 +54,7 @@ class ForensicInvestigatorV3(AgentV3):
   "data_gaps": ["Segment-wise RPT breakdown not available in provided context"]
 }"""
 
-    def build_agent_tools(self, doc: str, tables: dict) -> list[Tool]:
+    def build_agent_tools(self, doc: str, tables: dict, ticker: str = "") -> list[Tool]:
         return [
             Tool(
                 name="cross_reference_check",
